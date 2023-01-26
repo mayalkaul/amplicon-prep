@@ -1,12 +1,22 @@
 # amplicon-prep
 Merges, trims, and creates sorted bam files to view paired-end amplicon sequencing data
 
-#### Requires
+#### Requirements (and command line commands to get them)
 -conda
+
+-sequence viewer: Tablet and IGV are free
+
+all of the following can be installed by command line via "conda install -c bioconda <package name>"
+
+-nextflow (builds the pipeline)
+
 -pandaseq (merges paired end reads)
+
 -cutadapt (trims linked primers)
+
 -bwa (maps reads onto their target amplicon)
--samtools (creates the bam files that can be opened by a viewer -- Tablet and IGV, among many other, are free and decent)
+
+-samtools (creates the bam files that can be opened by a viewer)
 
 #### Data format
 user must create a design.csv file which tells nextflow where to find your files. As an example:
