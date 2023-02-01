@@ -1,8 +1,7 @@
-
 //////////////////////////////////////////////////////////
 /*						Parameters						*/
 //////////////////////////////////////////////////////////
-// params.directory='/Users/maya/Desktop/30-802983634/00_fastq/' // <-- alternative to passing directory in from command line: replace with your location
+params.directory='/Users/maya/Desktop/30-802983634/00_fastq/' // <-- alternative to passing directory in from command line: replace with your location
 
 //////////////////////////////////////////////////////////
 /*						Design file						*/
@@ -28,9 +27,10 @@ process merge {
 	tuple val(name),path(target),path(reads1),path(reads2),val(up),val(down) from ch_nabbed
 	output: 
 	tuple val(name),path(target),path("${name}_merged.fasta"),val(up),val(down) into ch_merged
+	path(target) into ch_target
 	script:
 	"""
-	pandaseq -f "${reads1}" -r "${reads2}" >> "${name}_merged.fasta"
+	pandaseq -f ${reads1} -r ${reads2} >> "${name}_merged.fasta"
 	"""
 }
 
@@ -60,6 +60,7 @@ process map{
 	tuple val(name),path(target), path(reads) from ch_trimmed
 	output:
 	tuple val(name),path("${name}_aln_pe.sam") into ch_sam
+	// tuple val(name),path("${name}_aln_pe.sam") into ch_sam2
 	script:
 	"""
     bwa index '${target}'
@@ -77,7 +78,6 @@ process makeBam {
     """
     samtools view -h -b -S $aln_pe > ${name}_aln_pe.bam
     """
-
 }
 process sortBam {
     publishDir params.directory+'out/sortBam'
@@ -85,9 +85,30 @@ process sortBam {
     tuple val(name), path(aln_pe_bam) from ch_bam
     output:
     tuple val(name), path("${name}_sorted.bam"), path("${name}_sorted.bam.bai") into ch_sorted_bam
+    tuple val(name), path("${name}_sorted.bam"), path("${name}_sorted.bam.bai") into ch_sorted_bam2
     script:
     """
     samtools sort $aln_pe_bam -o ${name}_sorted.bam
     samtools index ${name}_sorted.bam ${name}_sorted.bam.bai
     """
+}
+
+//////////////////////////////////////////////////////////
+/*				base-by-base spreadsheet				*/
+//////////////////////////////////////////////////////////
+
+process getDoc{
+	publishDir params.directory+"out/getDoc"
+	input: 
+	tuple val(name), path("${name}_sorted.bam"), path("${name}_sorted.bam.bai") from ch_sorted_bam //TODO NEED TARGET
+	path(target) from ch_ta
+	output: 
+	tuple val(name), path("${name}_results.tsv") into ch_missed 
+	shell:
+	//perform pileup––default of 8000 is fine––grab data. ***DOES NOT OFFER INFORMATION ON REVERSE READS***
+	"""
+	maxdepth=samtools view -c !{name}_sorted.bam
+	samtools mpileup !{name}_sorted.bam -f $target -d maxdepth -o !{name}_piled.tsv
+	awk -F '.' 'BEGIN{print "!{name}","\tposition","\tintended base","\tidk","\tmpileup","\tquality","\tcorrect read","\tA","\t T","\tG","\tC","\tdeletion","\tinsertion"}{print \$0,NF-1}' OFS="\t" !{name}_piled.tsv|awk -F 'A' '{print \$0, NF-1}' OFS="\t"|awk -F 'T' '{print \$0,NF-1}' OFS="\t"| awk -F 'G' '{print \$0,NF-1}' OFS="\t"| awk -F 'C' '{print \$0,NF-1}' OFS="\t" | awk -F '*' '{print \$0,NF-1}' OFS="\t" | awk -F '>' '{print \$0,NF-1}' OFS="\t" >>!{name}_results.tsv
+	"""
 }
