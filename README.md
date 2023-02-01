@@ -33,8 +33,18 @@ In that folder, I have made a fasta file with my target sequence.  In this case,
 
 #### Running from terminal and expected output
 
-after activating cutadapt environment (conda activate cutadaptenv), run nextflow run <location1>/grna_screen.nf -profile conda --directory <location2>, where the <location>s are the path to this script, and the directory containing your design.csv, respectively.  
+after activating cutadapt environment (conda activate cutadaptenv), run nextflow run location1/grna_screen.nf -profile conda --directory location2, where the locations are the path to this script, and the directory containing your design.csv, respectively.  
 
 I'd recommend making a folder for your design.csv, since this code will create an "out" folder which contains fastq files of intermediate steps (merged sequences, trimmed sequences, mapped sequences, bam files, and sorted bam files)
 
 sorted bam files will be openable in various sequencing viewers. 
+
+in getDoc there will be a spreadsheet that gives information on a base-by-base basis for a maximum depth of 8000 (to keep runtime reasonable: can be changed.  Check out samtools mpileup command for instructions)
+  <img width="852" alt="image" src="https://user-images.githubusercontent.com/20071084/216056443-30364a72-9ae7-4b72-acf8-9a75ec7d571e.png">
+
+In the above example, my sample is named "rosaO1O2". In the first position, my reference has an "A", and there are 19 reads over that area.  6 of those match "C", with no deletions or insertions.
+
+Caveats
+  -counts are off by 1-2. (the base-row will always be 1) 
+  -currently does not account for inverted segments ("," in mpileup column). 
+
