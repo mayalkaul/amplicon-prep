@@ -69,7 +69,7 @@ process map{
 }
 
 process makeBam {
-    publishDir params.directory+'/out/makeBam'
+    publishDir params.directory+'/out/makeBam' 
     input:
     tuple val(name), path(aln_pe) from ch_sam
     output:
@@ -80,7 +80,7 @@ process makeBam {
     """
 }
 process sortBam {
-    publishDir params.directory+'/out/sortBam'
+    publishDir params.directory+'/out/sortBam', mode: 'copy'
     input:
     tuple val(name), path(aln_pe_bam) from ch_bam
     output:
@@ -98,17 +98,19 @@ process sortBam {
 //////////////////////////////////////////////////////////
 
 process getDoc{
-	publishDir params.directory+"/out/getDoc"
+	publishDir params.directory+"/out/getDoc", mode:'move'
 	input: 
-	tuple val(name), path("${name}_sorted.bam"), path("${name}_sorted.bam.bai") from ch_sorted_bam //TODO NEED TARGET
+	tuple val(name), path("${name}_sorted.bam"), path("${name}_sorted.bam.bai") from ch_sorted_bam 
 	path(target) from ch_target
 	output: 
 	tuple val(name), path("${name}_results.tsv") into ch_missed 
 	shell:
-	//perform pileup and grab data. ***DOES NOT OFFER INFORMATION ON REVERSE READS***
+	//TODO only get the fifth row. 
+	//perform pileup and grab data. *OFFERS MINIMAL INFORMATION ON REVERSE READS*
 	// -d 8000 is the default for maximum of how many reads will be analyzed at each position.  it can be changed to any number, but higher may interfere with performance. 
 	"""
 	samtools mpileup !{name}_sorted.bam -f $target -d 8000 -o !{name}_piled.tsv
-	awk -F '.' 'BEGIN{print "!{name}","\tposition","\tintended base","\tread depth","\tmpileup","\tquality","\tcorrect read","\tA","\t T","\tG","\tC","\tdeletion","\tinsertion"}{print \$0,NF-1}' OFS="\t" !{name}_piled.tsv|awk -F 'A' '{print \$0, NF-1}' OFS="\t"|awk -F 'T' '{print \$0,NF-1}' OFS="\t"| awk -F 'G' '{print \$0,NF-1}' OFS="\t"| awk -F 'C' '{print \$0,NF-1}' OFS="\t" | awk -F '*' '{print \$0,NF-1}' OFS="\t" | awk -F '>' '{print \$0,NF-1}' OFS="\t" >>!{name}_results.tsv
+	awk -F '.' 'BEGIN{print "!{name}","\tposition","\tintended base","\tread depth","\tmpileup","\tquality","\tcorrect read","\tA","\t T","\tG","\tC","\tdeletion","\tinsertion","\treverse"}{print \$0,NF-1}' OFS="\t" !{name}_piled.tsv | awk -F 'A' '{print \$0, NF-1}' OFS="\t" | awk -F 'T' '{print \$0,NF-1}' OFS="\t" | awk -F 'G' '{print \$0,NF-1}' OFS="\t" | awk -F 'C' '{print \$0,NF-1}' OFS="\t" | awk -F '*' '{print \$0,NF-1}' OFS="\t" | awk -F '>' '{print \$0,NF-1}' OFS="\t" | awk -F ',' '{print \$0,NF-1}' OFS="\t" >>!{name}_results.tsv
 	"""
 }
+
