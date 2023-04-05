@@ -62,8 +62,8 @@ process map{
 	tuple val(name),path("${name}_aln_pe.sam") into ch_sam
 	script:
 	"""
-    bwa index '${target}'
-    bwa mem '${target}' $reads > ${name}_aln_pe.sam
+    	bwa index '${target}'
+    	bwa mem '${target}' $reads > ${name}_aln_pe.sam
 	"""
 }
 
@@ -90,4 +90,24 @@ process sortBam {
     samtools sort $aln_pe_bam -o ${name}_sorted.bam
     samtools index ${name}_sorted.bam ${name}_sorted.bam.bai
     """
+}
+
+////////////////////////////////////////////////////////// 
+/*				base-by-base spreadsheet				*/
+//////////////////////////////////////////////////////////
+
+process getDoc{
+	publishDir params.directory+"/out/getDoc", mode:'move'
+	input: 
+	tuple val(name), path("${name}_sorted.bam"), path("${name}_sorted.bam.bai") from ch_sorted_bam 
+	path(target) from ch_target
+	output: 
+	tuple val(name), path("${name}_results.tsv") into ch_missed 
+	shell:
+	//performs pileup and grab data. *OFFERS MINIMAL INFORMATION ON REVERSE READS*
+	// -d 8000 is the default for maximum of how many reads will be analyzed at each position.  it can be changed to any number, but higher may interfere with performance. 
+	"""
+	samtools mpileup !{name}_sorted.bam -f $target -d 8000 -o !{name}_piled.tsv
+	awk -F '.' 'BEGIN{print "!{name}","\tposition","\tintended base","\tread depth","\tmpileup","\tquality","\tcorrect read","\tA","\t T","\tG","\tC","\tdeletion","\tinsertion","\treverse"}{print \$0,NF-1}' OFS="\t" !{name}_piled.tsv | awk -F 'A' '{print \$0, NF-1}' OFS="\t" | awk -F 'T' '{print \$0,NF-1}' OFS="\t" | awk -F 'G' '{print \$0,NF-1}' OFS="\t" | awk -F 'C' '{print \$0,NF-1}' OFS="\t" | awk -F '*' '{print \$0,NF-1}' OFS="\t" | awk -F '>' '{print \$0,NF-1}' OFS="\t" | awk -F ',' '{print \$0,NF-1}' OFS="\t" >>!{name}_results.tsv
+	"""
 }
